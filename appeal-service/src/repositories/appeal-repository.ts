@@ -1,51 +1,76 @@
-import { Appeal, AppealModel, AppealStatus } from '../models/appeal-model.js';
-import { Op } from 'sequelize';
+import { IAppealRepository } from './iappeal-repository.js';
+import { Appeal, IAppeal } from '../models/appeal-model.js';
 
-export interface AppealRepository {
-  create(appeal: Partial<Appeal>): Promise<Appeal>;
-  findById(id: string): Promise<Appeal | null>;
-  update(appeal: Appeal): Promise<Appeal>;
-  findByDateRange(startDate?: string, endDate?: string): Promise<Appeal[]>;
-  findByDate(date: string): Promise<Appeal[]>;
-  findAllInProgress(): Promise<Appeal[]>;
-}
-
-export class AppealRepositoryImpl implements AppealRepository {
-  async create(appeal: Partial<Appeal>): Promise<Appeal> {
-    return AppealModel.create(appeal) as unknown as Appeal;
+export class AppealRepository implements IAppealRepository {
+  async create(subject: string, description: string): Promise<IAppeal> {
+    const appeal = new Appeal({
+      subject,
+      description,
+      status: 'New',
+      createdAt: new Date(),
+    });
+    return await appeal.save();
   }
 
-  async findById(id: string): Promise<Appeal | null> {
-    return AppealModel.findByPk(id) as unknown as Appeal | null;
-  }
-
-  async update(appeal: Appeal): Promise<Appeal> {
-    await AppealModel.update(appeal, { where: { id: appeal.getId() } });
-    return appeal;
-  }
-
-  async findByDateRange(startDate?: string, endDate?: string): Promise<Appeal[]> {
-    const where: any = {};
-    if (startDate && endDate) {
-      where.createdAt = { [Op.between]: [new Date(startDate), new Date(endDate)] };
+  async startProcessing(id: string): Promise<IAppeal> {
+    const appeal = await Appeal.findById(id);
+    if (!appeal) {
+      throw new Error('Appeal not found');
     }
-    return AppealModel.findAll({ where }) as unknown as Appeal[];
+    if (appeal.status !== 'New') {
+      throw new Error('Appeal must be in New status to start processing');
+    }
+    appeal.status = 'In Progress';
+    appeal.updatedAt = new Date();
+    return await appeal.save();
   }
 
-  async findByDate(date: string): Promise<Appeal[]> {
-    const start = new Date(date);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 1);
-    return AppealModel.findAll({
-      where: {
-        createdAt: { [Op.between]: [start, end] },
-      },
-    }) as unknown as Appeal[];
+  async complete(id: string, resolution: string): Promise<IAppeal> {
+    const appeal = await Appeal.findById(id);
+    if (!appeal) {
+      throw new Error('Appeal not found');
+    }
+    if (appeal.status !== 'In Progress') {
+      throw new Error('Appeal must be in In Progress status to complete');
+    }
+    appeal.status = 'Completed';
+    appeal.resolution = resolution;
+    appeal.updatedAt = new Date();
+    return await appeal.save();
   }
 
-  async findAllInProgress(): Promise<Appeal[]> {
-    return AppealModel.findAll({
-      where: { status: AppealStatus.IN_PROGRESS },
-    }) as unknown as Appeal[];
+  async cancel(id: string, cancelReason: string): Promise<IAppeal> {
+    const appeal = await Appeal.findById(id);
+    if (!appeal) {
+      throw new Error('Appeal not found');
+    }
+    if (appeal.status === 'Completed' || appeal.status === 'Canceled') {
+      throw new Error('Appeal cannot be canceled');
+    }
+    appeal.status = 'Canceled';
+    appeal.cancelReason = cancelReason;
+    appeal.updatedAt = new Date();
+    return await appeal.save();
+  }
+
+  async findByDateRange(date?: string, startDate?: string, endDate?: string): Promise<IAppeal[]> {
+    let query: any = {};
+    if (date) {
+      const start = new Date(date);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      query.createdAt = { $gte: start, $lt: end };
+    } else if (startDate && endDate) {
+      query.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+    return await Appeal.find(query);
+  }
+
+  async cancelAllInProgress(cancelReason: string): Promise<number> {
+    const result = await Appeal.updateMany(
+      { status: 'In Progress' },
+      { status: 'Canceled', cancelReason, updatedAt: new Date() }
+    );
+    return result.modifiedCount;
   }
 }

@@ -7,3 +7,15 @@ appeal-service/dist
 # env
 appeal-service/.env.dev
 appeal-service/.env.prod
+
+# test
+appeal-service/src/test
+
+# jest.config
+appeal-service/jest.config.ts
+
+# *.spec.ts
+appeal-service/src/controllers/appeal-controller.spec.ts
+appeal-service/src/models/appeal.spec.ts
+appeal-service/src/repositories/appeal-repository.spec.ts
+appeal-service/src/routes/appeal-routes.spec.ts
