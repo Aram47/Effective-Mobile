@@ -1,0 +1,9 @@
+# node_modules
+appeal-service/node_modules
+
+# dist
+appeal-service/dist
+
+# env
+appeal-service/.env.dev
+appeal-service/.env.prod

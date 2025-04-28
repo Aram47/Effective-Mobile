@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  appeal-service:
+    build:
+      context: ./appeal-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://user:password@postgres:5432/appeal_db
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+    volumes:
+      - ./appeal-service:/app
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: appeal_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
