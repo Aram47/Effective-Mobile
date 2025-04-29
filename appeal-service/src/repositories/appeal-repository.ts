@@ -1,24 +1,35 @@
 import { IAppealRepository } from './iappeal-repository.js';
 import { Appeal, IAppeal } from '../models/appeal-model.js';
+import { EXCEPTION_MESSAGE } from '../constants/index.js';
 
 export class AppealRepository implements IAppealRepository {
   async create(subject: string, description: string): Promise<IAppeal> {
-    const appeal = new Appeal({
-      subject,
-      description,
-      status: 'New',
-      createdAt: new Date(),
-    });
-    return await appeal.save();
+    try {
+      const appeal: IAppeal = new Appeal({
+        subject,
+        description,
+        status: 'New',
+        createdAt: new Date(),
+      });
+      const savedAppeal: IAppeal = await appeal.save();
+      return savedAppeal;
+    } catch (error) {
+      throw new Error(EXCEPTION_MESSAGE.CREATE_EXCEPTION);
+    }
   }
 
   async startProcessing(id: string): Promise<IAppeal> {
-    const appeal = await Appeal.findById(id);
+    let appeal: IAppeal | null = null;
+    try {
+      appeal = await Appeal.findById(id)
+    } catch (error) {
+      throw new Error(EXCEPTION_MESSAGE.INVALID_ID);
+    }
     if (!appeal) {
-      throw new Error('Appeal not found');
+      throw new Error(EXCEPTION_MESSAGE.INVALID_APPEAL);
     }
     if (appeal.status !== 'New') {
-      throw new Error('Appeal must be in New status to start processing');
+      throw new Error(EXCEPTION_MESSAGE.STATUS_NOT_NEW);
     }
     appeal.status = 'In Progress';
     appeal.updatedAt = new Date();
@@ -26,12 +37,17 @@ export class AppealRepository implements IAppealRepository {
   }
 
   async complete(id: string, resolution: string): Promise<IAppeal> {
-    const appeal = await Appeal.findById(id);
+    let appeal: IAppeal | null = null;
+    try {
+      appeal = await Appeal.findById(id)
+    } catch (error) {
+      throw new Error(EXCEPTION_MESSAGE.INVALID_ID);
+    }
     if (!appeal) {
-      throw new Error('Appeal not found');
+      throw new Error(EXCEPTION_MESSAGE.INVALID_ID);
     }
     if (appeal.status !== 'In Progress') {
-      throw new Error('Appeal must be in In Progress status to complete');
+      throw new Error(EXCEPTION_MESSAGE.STATUS_NOT_IN_PROGRESS);
     }
     appeal.status = 'Completed';
     appeal.resolution = resolution;
@@ -40,12 +56,20 @@ export class AppealRepository implements IAppealRepository {
   }
 
   async cancel(id: string, cancelReason: string): Promise<IAppeal> {
-    const appeal = await Appeal.findById(id);
-    if (!appeal) {
-      throw new Error('Appeal not found');
+    let appeal: IAppeal | null = null;
+    try {
+      appeal = await Appeal.findById(id)
+    } catch (error) {
+      throw new Error(EXCEPTION_MESSAGE.INVALID_ID);
     }
-    if (appeal.status === 'Completed' || appeal.status === 'Canceled') {
-      throw new Error('Appeal cannot be canceled');
+    if (!appeal) {
+      throw new Error(EXCEPTION_MESSAGE.INVALID_ID);
+    }
+    if (appeal.status === 'Canceled') {
+      throw new Error(EXCEPTION_MESSAGE.ALREADY_CANCELED);
+    }
+    if (appeal.status === 'Completed') {
+      throw new Error(EXCEPTION_MESSAGE.ALREADY_COMPLETED);
     }
     appeal.status = 'Canceled';
     appeal.cancelReason = cancelReason;
@@ -54,16 +78,26 @@ export class AppealRepository implements IAppealRepository {
   }
 
   async findByDateRange(date?: string, startDate?: string, endDate?: string): Promise<IAppeal[]> {
-    let query: any = {};
-    if (date) {
-      const start = new Date(date);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 1);
-      query.createdAt = { $gte: start, $lt: end };
-    } else if (startDate && endDate) {
-      query.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    try {
+      let query: any = {};
+      if (date) {
+        const start = new Date(date);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        query.createdAt = { 
+          $gte: start, 
+          $lt: end 
+        };
+      } else if (startDate && endDate) {
+        query.createdAt = { 
+          $gte: new Date(startDate), 
+          $lte: new Date(endDate) 
+        };
+      }
+      return await Appeal.find(query);
+    } catch (error) {
+      throw new Error(EXCEPTION_MESSAGE.INVALID_QUERY);
     }
-    return await Appeal.find(query);
   }
 
   async cancelAllInProgress(cancelReason: string): Promise<number> {

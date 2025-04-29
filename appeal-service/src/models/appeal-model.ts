@@ -1,7 +1,12 @@
-import { Schema, model, Document } from 'mongoose';
+import { 
+  Schema, 
+  model, 
+  Document, 
+  Model 
+} from 'mongoose';
 
 export interface IAppeal extends Document {
-  // bad case _id: number;
+  _id: string;
   subject: string;
   description: string;
   status: 'New' | 'In Progress' | 'Completed' | 'Canceled';
@@ -11,7 +16,7 @@ export interface IAppeal extends Document {
   updatedAt?: Date;
 }
 
-const AppealSchema = new Schema({
+const AppealSchema: Schema = new Schema({
   subject: { 
     type: String, 
     required: true 
@@ -44,4 +49,4 @@ const AppealSchema = new Schema({
   timestamps: true
 });
 
-export const Appeal = model<IAppeal>('Appeal', AppealSchema);
+export const Appeal: Model<IAppeal> = model<IAppeal>('Appeal', AppealSchema);

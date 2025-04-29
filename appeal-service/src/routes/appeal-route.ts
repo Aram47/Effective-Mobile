@@ -11,13 +11,6 @@ const appealController: AppealController = new AppealController(appealService);
 
 const router: Router = Router();
 
-/**
- * @swagger
- * tags:
- *   name: Appeals
- *   description: API для управления обращениями
- */
-
 router.post('/', 
   AppealMiddleware.createValidation,
   appealController.create.bind(appealController)

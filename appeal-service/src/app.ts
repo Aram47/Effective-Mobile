@@ -9,8 +9,10 @@ export function start() {
   connectDB();
 
   const app = express();
+
   app.use(express.json());
   app.use(cors());
-  app.use('appeal', AppealRouter);
+  app.use('/appeal', AppealRouter);
+  
   return app;
 }
